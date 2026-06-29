@@ -300,14 +300,35 @@ end
 
 ---------------- STORAGE UTILITIES ----------------
 
+---Derive a short, filesystem-friendly task identifier from a problem URL.
+---Supports Codeforces (/contest/<id>/problem/<idx>, /problemset/problem/<id>/<idx>, /gym/<id>/problem/<idx>)
+---and AtCoder (/tasks/<slug>). Falls back to `task_name` for unrecognised URLs.
+---@param url string problem URL from competitive-companion
+---@param task_name string fallback name (task.name)
+---@return string
+local function task_name_from_url(url, task_name)
+	-- Codeforces: .../problem/<contest_id>/<problem_index>
+	local cf_id, cf_index = string.match(url, "/(%d+)/problem/(%u+)$")
+	if cf_id and cf_index then
+		return cf_id .. cf_index
+	end
+	-- AtCoder: .../tasks/<task_slug>
+	local ac_slug = string.match(url, "/tasks/([^/]+)$")
+	if ac_slug then
+		return ac_slug
+	end
+	return task_name
+end
+
 ---Convert a string with CompetiTest receive modifiers into a formatted string
 ---@param str string the string to evaluate
 ---@param task competitest.CCTask received task
 ---@param file_extension string
 ---@param remove_illegal_characters boolean whether to remove windows illegal characters from modifiers or not
 ---@param date_format string? string used to format date
+---@param filename_strategy "name" | "url" | nil determines what `$(TASKNAME)` expands to; defaults to `"name"`
 ---@return string? # the converted string, or `nil` on failure
-function storage_utils.eval_receive_modifiers(str, task, file_extension, remove_illegal_characters, date_format)
+function storage_utils.eval_receive_modifiers(str, task, file_extension, remove_illegal_characters, date_format, filename_strategy)
 	local judge, contest
 	local hyphen = string.find(task.group, " - ", 1, true)
 	if not hyphen then
@@ -335,6 +356,8 @@ function storage_utils.eval_receive_modifiers(str, task, file_extension, remove_
 		["JAVA_MAIN_CLASS"] = task.languages.java.mainClass, -- it's almost always 'Main'
 		["JAVA_TASK_CLASS"] = task.languages.java.taskClass, -- classname-friendly version of problem name
 		["DATE"] = tostring(os.date(date_format)),
+		-- $(TASKNAME): short identifier derived from the URL when filename_strategy="url", else task.name
+		["TASKNAME"] = (filename_strategy == "url") and task_name_from_url(task.url, task.name) or task.name,
 	}
 
 	if remove_illegal_characters then
@@ -442,7 +465,7 @@ function storage_utils.store_received_task_config(filepath, confirm_overwriting,
 		if cfg.evaluate_template_modifiers then
 			local str = utils.load_file_as_string(template_file)
 			assert(str, "CompetiTest.nvim: store_received_task_config: cannot load '" .. template_file .. "'")
-			local evaluated_str = storage_utils.eval_receive_modifiers(str, task, file_extension, false, cfg.date_format)
+			local evaluated_str = storage_utils.eval_receive_modifiers(str, task, file_extension, false, cfg.date_format, cfg.filename_strategy)
 			utils.write_string_on_file(filepath, evaluated_str or "")
 		else
 			utils.create_directory(file_directory)

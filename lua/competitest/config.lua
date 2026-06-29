@@ -95,6 +95,7 @@
 ---@field open_received_contests boolean automatically open source files when receiving a contest
 ---@field replace_received_testcases boolean this option only applies when receiving testcases: if `true` replace existing testcases with received ones, otherwise ask user what to do
 ---@field remove_compiled_binary boolean if `true`, remove the compiled binary after all testcases finish running
+---@field filename_strategy "name" | "url" strategy to generate the basename of received problem files: `"name"` uses the problem name (existing behavior), `"url"` derives a short identifier from the problem URL (e.g. `954G` for Codeforces, `dp_c` for AtCoder); use the `$(TASKNAME)` receive modifier to reference this value in path configs
 
 ---Default CompetiTest configuration
 ---@type competitest.Config
@@ -245,6 +246,7 @@ local default_config = {
 	open_received_contests = true,
 	replace_received_testcases = false,
 	remove_compiled_binary = false,
+	filename_strategy = "name",
 }
 
 local M = {}
