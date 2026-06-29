@@ -45,6 +45,7 @@ local utils = require("competitest.utils")
 ---@field tcdata table<integer, competitest.TCRunner.testcase_status> testcases status, data and results
 ---@field private compile boolean whether compilation is needed in the current run or not
 ---@field private next_tc integer index of next unprocessed testcase to run
+---@field private running_count integer number of testcases currently running (used to detect when all are done)
 ---@field ui_restore_winid integer? bring the cursor to the given window when testcases runner UI is closed
 ---@field private ui competitest.RunnerUI?
 local TCRunner = {}
@@ -108,6 +109,7 @@ function TCRunner:new(bufnr)
 		tcdata = {},
 		compile = compile_command ~= nil,
 		next_tc = 1,
+		running_count = 0,
 	}
 	setmetatable(this, self)
 	return this
@@ -167,6 +169,7 @@ function TCRunner:run_testcases(tctbl, compile)
 	end
 
 	-- reset running data
+	self.running_count = 0
 	for _, tc in pairs(self.tcdata) do
 		tc.status = ""
 		tc.hlgroup = "CompetiTestRunning"
@@ -269,6 +272,14 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 			tc.timer:close()
 		end
 
+		self.running_count = self.running_count - 1
+		if self.running_count == 0 and self.config.remove_compiled_binary and self.cc then
+			-- strip leading "./" or ".\" prefix that run_command entries typically use
+			local exec_name = self.rc.exec:gsub("^%.[/\\]", "")
+			local binary_path = self.running_directory .. exec_name
+			os.remove(binary_path)
+		end
+
 		self:update_ui(true)
 		if callback then
 			callback()
@@ -347,6 +358,7 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 	end
 
 	-- set running data
+	self.running_count = self.running_count + 1
 	tc.time = nil
 	process.starting_time = luv.now()
 	tc.process = process

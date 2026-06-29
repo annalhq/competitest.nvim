@@ -94,6 +94,7 @@
 ---@field open_received_problems boolean automatically open source files when receiving a single problem
 ---@field open_received_contests boolean automatically open source files when receiving a contest
 ---@field replace_received_testcases boolean this option only applies when receiving testcases: if `true` replace existing testcases with received ones, otherwise ask user what to do
+---@field remove_compiled_binary boolean if `true`, remove the compiled binary after all testcases finish running
 
 ---Default CompetiTest configuration
 ---@type competitest.Config
@@ -243,6 +244,7 @@ local default_config = {
 	open_received_problems = true,
 	open_received_contests = true,
 	replace_received_testcases = false,
+	remove_compiled_binary = false,
 }
 
 local M = {}
