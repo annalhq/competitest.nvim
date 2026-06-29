@@ -375,10 +375,11 @@ end
 ---@param path string | fun(task: competitest.CCTask, file_extension: string): string see `received_problems_path`, `received_contests_directory` and `received_contests_problems_path`
 ---@param task competitest.CCTask received task
 ---@param file_extension string configured file extension
+---@param filename_strategy "name" | "url" | nil determines what `$(TASKNAME)` expands to
 ---@return string? # evaluated path, or `nil` on failure
-function storage_utils.eval_path(path, task, file_extension)
+function storage_utils.eval_path(path, task, file_extension, filename_strategy)
 	if type(path) == "string" then
-		return storage_utils.eval_receive_modifiers(path, task, file_extension, true)
+		return storage_utils.eval_receive_modifiers(path, task, file_extension, true, nil, filename_strategy)
 	elseif type(path) == "function" then
 		return path(task, file_extension)
 	end
@@ -499,7 +500,7 @@ end
 ---@param cfg competitest.Config current CompetiTest configuration
 ---@param finished fun()? a function that must be called when procedure finishes
 function storage_utils.store_single_problem(task, cfg, finished)
-	local evaluated_problem_path = storage_utils.eval_path(cfg.received_problems_path, task, cfg.received_files_extension)
+	local evaluated_problem_path = storage_utils.eval_path(cfg.received_problems_path, task, cfg.received_files_extension, cfg.filename_strategy)
 	if not evaluated_problem_path then
 		utils.notify("'received_problems_path' evaluation failed for task '" .. task.name .. "'")
 		if finished then
@@ -527,7 +528,7 @@ end
 ---@param cfg competitest.Config current CompetiTest configuration
 ---@param finished fun()? a function that must be called when procedure finishes
 function storage_utils.store_contest(tasks, cfg, finished)
-	local contest_directory = storage_utils.eval_path(cfg.received_contests_directory, tasks[1], cfg.received_files_extension)
+	local contest_directory = storage_utils.eval_path(cfg.received_contests_directory, tasks[1], cfg.received_files_extension, cfg.filename_strategy)
 	if not contest_directory then
 		utils.notify("'received_contests_directory' evaluation failed")
 		if finished then
@@ -547,7 +548,7 @@ function storage_utils.store_contest(tasks, cfg, finished)
 			not local_cfg.received_contests_prompt_extension,
 			function(file_extension)
 				for _, task in ipairs(tasks) do
-					local problem_path = storage_utils.eval_path(local_cfg.received_contests_problems_path, task, file_extension)
+					local problem_path = storage_utils.eval_path(local_cfg.received_contests_problems_path, task, file_extension, local_cfg.filename_strategy)
 					if problem_path then
 						local filepath = directory .. "/" .. problem_path
 						storage_utils.store_received_task_config(filepath, true, task, local_cfg)
