@@ -35,7 +35,7 @@ function M.setup(opts)
 			endif
 			return ""
 		endfunction
-		command! -bar -nargs=* -complete=custom,s:command_completion cpt lua require("competitest.commands").command(<q-args>)
+		command! -bar -nargs=* -complete=custom,s:command_completion Cpt lua require("competitest.commands").command(<q-args>)
 		command! -bar -nargs=* -complete=custom,s:command_completion CompetiTest lua require("competitest.commands").command(<q-args>)
 		]])
 
