@@ -307,8 +307,14 @@ end
 ---@param task_name string fallback name (task.name)
 ---@return string
 local function task_name_from_url(url, task_name)
-	-- Codeforces: .../problem/<contest_id>/<problem_index>
+	-- Codeforces: .../problem/<contest_id>/<problem_index> (aleternative links: /problemset/problem/... and /gym/.../problem/...)
 	local cf_id, cf_index = string.match(url, "/(%d+)/problem/(%u+)$")
+	if not cf_id then
+		cf_id, cf_index = string.match(url, "/problemset/problem/(%d+)/(%u+)$")
+	end
+	if not cf_id then
+		cf_id, cf_index = string.match(url, "/gym/(%d+)/problem/(%u+)$")
+	end
 	if cf_id and cf_index then
 		return cf_id .. cf_index
 	end
