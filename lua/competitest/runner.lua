@@ -273,7 +273,7 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 		end
 
 		self.running_count = self.running_count - 1
-		if self.running_count == 0 and self.config.remove_compiled_binary and self.cc then
+		if self.running_count == 0 and self.config.remove_compiled_binary and self.cc and tc.tcnum ~= "Compile" then
 			-- strip leading "./" or ".\" prefix that run_command entries typically use
 			local exec_name = self.rc.exec:gsub("^%.[/\\]", "")
 			local binary_path = self.running_directory .. exec_name
