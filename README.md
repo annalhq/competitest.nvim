@@ -73,6 +73,8 @@ require('competitest').setup { -- to customize settings
 ```
 To see all the available settings see [configuration](#configuration).
 
+All commands can be invoked as `:CompetiTest <subcommand>` or using the shorter alias `:cpt <subcommand>`. Both are identical in behavior and support the same tab-completion.
+
 ### Usage notes
 - Your programs must read from `stdin` and print to `stdout`. If `stderr` is used its content will be displayed
 - A testcase is made by an input and an output (containing the correct answer)
@@ -94,7 +96,7 @@ To see all the available settings see [configuration](#configuration).
 - Of course single file naming can be configured: see `testcases_single_file_format` in [configuration](#configuration)
 - Testcases file can be put in the same folder of the source code file, but you can customize its path (see `testcases_directory` in [configuration](#configuration))
 
-Anyway you can forget about these rules if you use `:CompetiTest add_testcase` and `:CompetiTest edit_testcase`, that handle these things for you.
+Anyway you can forget about these rules if you use `:cpt add_testcase` and `:cpt edit_testcase`, that handle these things for you.
 
 When launching the following commands make sure the focused buffer is the one containing the source code file.
 
