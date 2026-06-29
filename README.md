@@ -176,6 +176,12 @@ Here are some tips:
 	``` lua
 	received_contests_problems_path = "$(JAVA_TASK_CLASS).$(FEXT)"
 	```
+- Short URL-derived file names using `$(TASKNAME)` with `filename_strategy = "url"`. This gives compact identifiers like `954G.cpp` for Codeforces or `dp_c.cpp` for AtCoder:
+	``` lua
+	filename_strategy = "url",
+	received_problems_path = "$(HOME)/Competitive Programming/$(JUDGE)/$(CONTEST)/$(TASKNAME).$(FEXT)",
+	received_contests_problems_path = "$(TASKNAME).$(FEXT)",
+	```
 
 #### Templates for received problems and contests
 When downloading a problem or a contest, source code templates can be configured for different file types. See `template_file` option in [configuration](#configuration).\
@@ -330,6 +336,8 @@ require('competitest').setup {
 	open_received_problems = true,
 	open_received_contests = true,
 	replace_received_testcases = false,
+	remove_compiled_binary = false,
+	filename_strategy = "name",
 }
 ```
 
@@ -389,6 +397,7 @@ require('competitest').setup {
 - `compile_command`: configure the command used to compile code for every different language, see [here](#customize-compile-and-run-commands)
 - `running_directory`: execution directory of your solutions, relatively to current file's path
 - `run_command`: configure the command used to run your solutions for every different language, see [here](#customize-compile-and-run-commands)
+- `remove_compiled_binary`: if true, automatically delete the compiled binary after all testcases finish running. Useful to keep your working directory clean when using compiled languages like C or C++
 - `multiple_testing`: how many testcases to run at the same time
 	- set it to `-1` to make the most of the amount of available parallelism. Often the number of testcases run at the same time coincides with the number of CPUs
 	- set it to `0` if you want to run all the testcases together
@@ -461,6 +470,10 @@ require('competitest').setup {
 - `open_received_problems`: automatically open source files when receiving a single problem
 - `open_received_contests`: automatically open source files when receiving a contest
 - `replace_received_testcases`: this option applies when receiving only testcases. If true replace existing testcases with received ones, otherwise ask user what to do
+- `remove_compiled_binary`: if true, automatically delete the compiled binary after all testcases finish running. Useful to keep the working directory clean when using compiled languages like C or C++
+- `filename_strategy`: strategy used to generate the basename of received problem files. Affects the `$(TASKNAME)` [receive modifier](#receive-modifiers). Can be:
+	- `"name"` (default): uses the problem name as-is (existing behavior, equivalent to `$(PROBLEM)`)
+	- `"url"`: derives a short, filesystem-friendly identifier from the problem URL — e.g. `954G` for a Codeforces problem or `dp_c` for an AtCoder task. Falls back to the problem name for unrecognised judges
 
 ### Local configuration
 You can use a different configuration for every different folder by creating a file called `.competitest.lua` (this name can be changed configuring the option `local_config_file_name`). It will affect every file contained in that folder and in subfolders. A table containing valid options must be returned, see the following example.
@@ -510,6 +523,7 @@ You can use them to customize the options `received_problems_path`, `received_co
 | `$(TIMELIM)`         | time limit, `timeLimit` field                                 |
 | `$(JAVA_MAIN_CLASS)` | almost always "Main", `mainClass` field                       |
 | `$(JAVA_TASK_CLASS)` | classname-friendly version of problem name, `taskClass` field |
+| `$(TASKNAME)`        | short task identifier whose value depends on [`filename_strategy`](#explanation): with `"name"` it equals `$(PROBLEM)`; with `"url"` it is derived from the problem URL (e.g. `954G` for Codeforces, `dp_c` for AtCoder), falling back to `$(PROBLEM)` for unrecognised judges |
 | `$(DATE)`            | current date and time (based on [`date_format`](#explanation)), it can be used only inside [template files](#templates-for-received-problems-and-contests) |
 
 Fields are referred to [received tasks](https://github.com/jmerle/competitive-companion/#the-format).
