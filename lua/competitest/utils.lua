@@ -166,6 +166,25 @@ function M.delete_file(filepath)
 	assert(luv.fs_unlink(filepath), "CompetiTest.nvim: delete_file: cannot delete file '" .. filepath .. "'")
 end
 
+---Return a set with the names of the entries directly contained in a directory
+---@param dirpath string directory absolute path
+---@return table<string, boolean> # set of entry names, empty if the directory doesn't exist or can't be read
+function M.list_directory_entries(dirpath)
+	local entries = {}
+	local handle = luv.fs_scandir(dirpath)
+	if not handle then
+		return entries
+	end
+	while true do
+		local name = luv.fs_scandir_next(handle)
+		if not name then
+			break
+		end
+		entries[name] = true
+	end
+	return entries
+end
+
 ---Get Neovim UI width and height
 ---@return integer width, integer height width (number of columns) and height (number of rows)
 function M.get_ui_size()

@@ -46,6 +46,8 @@ local utils = require("competitest.utils")
 ---@field private compile boolean whether compilation is needed in the current run or not
 ---@field private next_tc integer index of next unprocessed testcase to run
 ---@field private running_count integer number of testcases currently running (used to detect when all are done)
+---@field private pre_compile_snapshot table<string, boolean>? entries present in the compile directory before compilation, used to detect compiled artifacts
+---@field private compiled_artifacts string[]? absolute paths of the files produced by the last compilation, removed after the run when `remove_compiled_binary` is set
 ---@field ui_restore_winid integer? bring the cursor to the given window when testcases runner UI is closed
 ---@field private ui competitest.RunnerUI?
 local TCRunner = {}
@@ -205,17 +207,40 @@ function TCRunner:run_testcases(tctbl, compile)
 		end
 	end
 
+	self.compiled_artifacts = nil
 	if not self.compile then
 		run_first_testcases()
 	else
 		self.next_tc = 2
+		-- snapshot the compile directory so we can detect the files compilation creates
+		if self.config.remove_compiled_binary then
+			self.pre_compile_snapshot = utils.list_directory_entries(self.compile_directory)
+		end
 		local function compilation_callback()
 			if self.tcdata[1].exit_code == 0 then
+				if self.config.remove_compiled_binary then
+					self.compiled_artifacts = self:detect_compiled_artifacts()
+				end
 				run_first_testcases()
 			end
 		end
 		self:execute_testcase(1, self.cc, self.compile_directory, compilation_callback)
 	end
+end
+
+---@private
+---Compute the files created in the compile directory by the last compilation, comparing the current
+---directory contents against the snapshot taken before compiling
+---@return string[] # absolute paths of the newly-created files
+function TCRunner:detect_compiled_artifacts()
+	local before = self.pre_compile_snapshot or {}
+	local artifacts = {}
+	for name in pairs(utils.list_directory_entries(self.compile_directory)) do
+		if not before[name] then
+			table.insert(artifacts, self.compile_directory .. name)
+		end
+	end
+	return artifacts
 end
 
 ---@private
@@ -273,11 +298,12 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 		end
 
 		self.running_count = self.running_count - 1
-		if self.running_count == 0 and self.config.remove_compiled_binary and self.cc and tc.tcnum ~= "Compile" then
-			-- strip leading "./" or ".\" prefix that run_command entries typically use
-			local exec_name = self.rc.exec:gsub("^%.[/\\]", "")
-			local binary_path = self.running_directory .. exec_name
-			os.remove(binary_path)
+		if self.running_count == 0 and self.config.remove_compiled_binary and self.compiled_artifacts then
+			-- remove the files compilation actually produced, tracked via the compile-directory snapshot
+			for _, artifact in ipairs(self.compiled_artifacts) do
+				os.remove(artifact)
+			end
+			self.compiled_artifacts = nil
 		end
 
 		self:update_ui(true)
