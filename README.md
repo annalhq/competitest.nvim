@@ -27,6 +27,7 @@
 - [Run](#run-testcases) your program across all the testcases, showing results and execution data in a nice interactive UI
 - [Download](#receive-testcases-problems-and-contests) testcases, problems and contests automatically from competitive programming platforms
 - [Templates](#templates-for-received-problems-and-contests) for received problems and contests
+- Optional [Git integration](#git-integration): a LazyGit-style UI to commit (and push) solved problems with structured, auto-filled commit messages
 - View diff between actual and expected output
 - [Customizable interface](#customize-ui-layout) that resizes automatically when Neovim window is resized
 - Integration with [statusline and winbar](#statusline-and-winbar-integration)
@@ -206,6 +207,155 @@ int main() {
 }
 ```
 
+## Git integration
+CompetiTest ships with an optional, self-contained Git module tailored for competitive
+programming. After you solve a problem and your testcases pass, one keybinding opens a
+LazyGit-style floating UI where you stage, commit — with a structured, auto-filled commit
+message — and optionally push your solution. No terminal interaction is required.
+
+The feature is **disabled by default**. If you never set `git.enabled = true`, nothing changes:
+no command is registered and no hook runs.
+
+``` lua
+require("competitest").setup({
+	git = {
+		enabled = true,
+	},
+})
+```
+
+### How problem metadata is obtained
+CompetiTest does not normally keep a problem's title/URL/platform after it is received.
+When Git integration is enabled, a small JSON sidecar (default `<name>.cpmeta.json`, next to
+the source file) is written at receive-time so the UI can auto-fill everything later.
+
+If a source file has no sidecar (e.g. it was created manually), the module falls back to:
+1. a URL found in the file header (e.g. a template comment), then
+2. inference from the file name — this works best with
+   [`filename_strategy = "url"`](#full-configuration), e.g. `2050A.cpp` → `CF2050A`.
+
+Every field remains editable in the UI. Difficulty is always chosen manually (Competitive
+Companion does not provide a rating). You will probably want to ignore the sidecars:
+
+```gitignore
+*.cpmeta.json
+```
+
+### The `:CompetiGit` command
+Registered only when `git.enabled = true`. It opens the interactive UI, which has two modes.
+
+**Selection Mode** (default) shows the repository, file staging status, resolved problem
+metadata and a live commit-message preview:
+
+| Key   | Action                    |
+|-------|---------------------------|
+| `c`   | enter Commit Mode         |
+| `a`   | stage the current file    |
+| `u`   | unstage the current file  |
+| `P`   | push                      |
+| `r`   | refresh state             |
+| `q` / `<Esc>` | close the UI      |
+
+**Commit Mode** (`c`) shows the editable fields — Type, Platform, Difficulty, Language,
+Attempts, Editorial, Contest Mode — with a live preview that updates on every change:
+
+| Key            | Action                                   |
+|----------------|------------------------------------------|
+| `<Tab>` / `<S-Tab>` | move between fields                 |
+| `<Space>` / `e`     | edit the focused field (dropdown or prompt) |
+| `<Left>` / `<Right>` (`h` / `l`) | cycle the focused field's value |
+| `<Enter>`      | confirm and commit (stages the solution first) |
+| `<Esc>`        | return to Selection Mode                 |
+
+All mappings are configurable under `git.mappings`.
+
+### Lua API
+``` lua
+require("competitest.git").open()         -- open the interactive UI (same as :CompetiGit)
+require("competitest.git").commit()        -- stage + commit the current solution, no UI
+require("competitest.git").push()          -- push the current branch
+require("competitest.git").commit_push()   -- commit then push
+```
+
+### Example keymaps
+These are **not** set by the plugin — add the ones you like:
+``` lua
+vim.keymap.set("n", "<leader>gg", "<cmd>CompetiGit<cr>",                        { desc = "CompetiTest Git UI" })
+vim.keymap.set("n", "<leader>gc", function() require("competitest.git").commit() end, { desc = "CompetiTest commit" })
+vim.keymap.set("n", "<leader>gp", function() require("competitest.git").push() end,   { desc = "CompetiTest push" })
+```
+
+### Commit message format
+The default formatter produces `<type>(<platform>/<difficulty>): <id> <title>`, e.g.:
+```
+practice(cf/1700): CF2050A Line Breaks
+solve(at/1200): ABC412C Merge Slimes
+upsolve(lc/Hard): LC42 Trapping Rain Water
+```
+
+You can replace it entirely with a callback. The formatter receives a `problem` and a `meta`
+table:
+``` lua
+require("competitest").setup({
+	git = {
+		enabled = true,
+		-- problem = { platform, contest, index, id, title, url, filepath }
+		-- meta    = { type, difficulty, language, attempts, editorial, contest }
+		commit_formatter = function(problem, meta)
+			return ("%s(%s/%s): %s %s"):format(meta.type, problem.platform, meta.difficulty, problem.id, problem.title)
+		end,
+		-- optional commit body (enable with `body = true`)
+		body = true,
+		body_formatter = function(problem, meta)
+			return ("Solved in %d attempt(s)\n%s"):format(meta.attempts, problem.url)
+		end,
+	},
+})
+```
+
+### Git options
+``` lua
+require("competitest").setup({
+	git = {
+		enabled = false,             -- master switch
+		commit_on_accept = false,    -- false | "ui" (open the UI) | "auto" (commit directly) when all testcases pass
+		default_type = "practice",   -- default commit type
+		types = {                    -- available commit types
+			"solve", "practice", "upsolve", "virtual",
+			"refactor", "optimize", "editorial", "template",
+		},
+		commit_formatter = nil,      -- function(problem, meta) -> string; nil uses the built-in default
+		body_formatter = nil,        -- function(problem, meta) -> string
+		body = false,                -- include a commit body
+		push_after_commit = false,   -- push automatically after a successful commit
+		stage_testcases = false,     -- also stage the problem's testcases directory
+		meta_file_format = "$(ABSDIR)/$(FNOEXT).cpmeta.json", -- sidecar path (file-format modifiers)
+		language_map = {},           -- override filetype/extension -> language label, e.g. { cpp = "cpp23" }
+		difficulty = {               -- per-platform difficulty lists (fully overridable)
+			cf = { "800", "900", "--snip--", "3500" },
+			at = { "400", "600", "--snip--", "3600" },
+			lc = { "Easy", "Medium", "Hard" },
+			cc = { "1★", "2★", "3★", "4★", "5★", "6★", "7★" },
+			cs = { "Introductory", "Sorting", "Data Structures", "Dynamic Programming", "Graph", "Range Queries", "Tree", "Math", "String", "Geometry", "Advanced" },
+		},
+		platforms = { --[[ ordered platform detection table; see lua/competitest/git/config.lua ]] },
+		width = 0.6,                 -- UI width  (ratio of Neovim width)
+		height = 0.6,                -- UI height (ratio of Neovim height)
+		mappings = {
+			selection = { commit = "c", push = "P", stage = "a", unstage = "u", refresh = "r", close = { "q", "<esc>" } },
+			commit = {
+				confirm = "<cr>", back = "<esc>",
+				next_field = { "<tab>", "j", "<down>" }, prev_field = { "<s-tab>", "k", "<up>" },
+				edit = { "<space>", "e" }, cycle_next = { "<right>", "l" }, cycle_prev = { "<left>", "h" },
+			},
+		},
+	},
+})
+```
+
+Supported platforms out of the box: Codeforces (`cf`), AtCoder (`at`), LeetCode (`lc`),
+CodeChef (`cc`) and CSES (`cs`). Add or override entries via `git.platforms`.
+
 ## Configuration
 ### Full configuration
 Here you can find CompetiTest default configuration
@@ -340,6 +490,7 @@ require('competitest').setup {
 	replace_received_testcases = false,
 	remove_compiled_binary = false,
 	filename_strategy = "name",
+	git = { enabled = false }, -- optional Git integration, see the "Git integration" section for all options
 }
 ```
 

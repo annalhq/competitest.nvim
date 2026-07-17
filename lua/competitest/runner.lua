@@ -229,6 +229,33 @@ function TCRunner:run_testcases(tctbl, compile)
 end
 
 ---@private
+---Trigger the Git integration when every (non-compilation) testcase passed.
+---Honours `git.commit_on_accept`; a no-op when Git integration is disabled.
+---Deferred with `vim.schedule` so testcase statuses are fully settled first.
+function TCRunner:check_commit_on_accept()
+	local git = self.config.git
+	if not (git and git.enabled and git.commit_on_accept) then
+		return
+	end
+	local bufnr = self.bufnr
+	local tcdata = self.tcdata
+	vim.schedule(function()
+		local total, correct = 0, 0
+		for _, tc in pairs(tcdata) do
+			if tc.tcnum ~= "Compile" then
+				total = total + 1
+				if tc.status == "CORRECT" then
+					correct = correct + 1
+				end
+			end
+		end
+		if total > 0 and correct == total then
+			require("competitest.git").on_accept(bufnr)
+		end
+	end)
+end
+
+---@private
 ---Compute the files created in the compile directory by the last compilation, comparing the current
 ---directory contents against the snapshot taken before compiling
 ---@return string[] # absolute paths of the newly-created files
@@ -304,6 +331,9 @@ function TCRunner:execute_testcase(tcindex, cmd, dir, callback)
 				os.remove(artifact)
 			end
 			self.compiled_artifacts = nil
+		end
+		if self.running_count == 0 then
+			self:check_commit_on_accept()
 		end
 
 		self:update_ui(true)

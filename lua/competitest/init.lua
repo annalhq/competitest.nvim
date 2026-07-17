@@ -39,6 +39,13 @@ function M.setup(opts)
 		command! -bar -nargs=* -complete=custom,s:command_completion CompetiTest lua require("competitest.commands").command(<q-args>)
 		]])
 
+		-- Git integration command (only registered when enabled)
+		if config.current_setup.git and config.current_setup.git.enabled then
+			vim.api.nvim_create_user_command("CompetiGit", function()
+				require("competitest.git").open()
+			end, { bar = true, desc = "Open the CompetiTest Git UI" })
+		end
+
 		-- create highlight groups
 		M.setup_highlight_groups()
 		vim.api.nvim_command("autocmd ColorScheme * lua require('competitest').setup_highlight_groups()")
@@ -61,6 +68,7 @@ end
 function M.resize_ui()
 	vim.schedule(function()
 		require("competitest.widgets").resize_widgets()
+		require("competitest.git.ui").resize()
 		for _, r in pairs(require("competitest.commands").runners) do
 			r:resize_ui()
 		end

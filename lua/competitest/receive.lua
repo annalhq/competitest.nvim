@@ -499,6 +499,11 @@ function storage_utils.store_received_task_config(filepath, confirm_overwriting,
 	else
 		testcases.io_files.write_eval_format_string(tcdir, tctbl, filepath, cfg.testcases_input_file_format, cfg.testcases_output_file_format)
 	end
+
+	-- persist problem metadata for the Git integration (no-op when disabled)
+	if cfg.git and cfg.git.enabled then
+		require("competitest.git.meta").store(filepath, task, cfg)
+	end
 end
 
 ---Utility function to store a single received problem

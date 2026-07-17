@@ -96,6 +96,7 @@
 ---@field replace_received_testcases boolean this option only applies when receiving testcases: if `true` replace existing testcases with received ones, otherwise ask user what to do
 ---@field remove_compiled_binary boolean if `true`, remove the compiled binary after all testcases finish running
 ---@field filename_strategy "name" | "url" strategy to generate the basename of received problem files: `"name"` uses the problem name (existing behavior), `"url"` derives a short identifier from the problem URL (e.g. `954G` for Codeforces, `dp_c` for AtCoder); use the `$(TASKNAME)` receive modifier to reference this value in path configs
+---@field git competitest.Config.git Git integration options; disabled by default (see `competitest.git.config`)
 
 ---Default CompetiTest configuration
 ---@type competitest.Config
@@ -247,6 +248,7 @@ local default_config = {
 	replace_received_testcases = false,
 	remove_compiled_binary = false,
 	filename_strategy = "name",
+	git = require("competitest.git.config").defaults,
 }
 
 local M = {}
@@ -283,6 +285,8 @@ function M.update_config_table(cfg_tbl, opts)
 			new_config.run_command[lang].args = cmd.args
 		end
 	end
+	-- ordered lists inside git config must be replaced, not index-merged
+	require("competitest.git.config").fix_list_options(new_config.git, opts.git)
 	return new_config
 end
 
