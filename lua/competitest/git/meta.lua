@@ -32,6 +32,22 @@ local default_language_map = {
 	rb = "ruby",
 }
 
+---Strip a leading problem-index label from a title.
+---@param title string? raw problem title
+---@param index string? problem index
+---@return string
+function M.normalize_title(title, index)
+	title = title or ""
+	if title == "" then
+		return title
+	end
+	if index and index ~= "" then
+		local escaped = index:gsub("(%W)", "%%%1")
+		return (title:gsub("^" .. escaped .. "%s*[%.%-:)]%s+", ""))
+	end
+	return (title:gsub("^%u+%d*%s*[%.%-:)]%s+", ""))
+end
+
 ---Split a task `group` (`"Judge - Contest"`) into its judge and contest parts.
 ---@param group string?
 ---@return string judge, string contest
@@ -114,7 +130,7 @@ function M.build_problem(filepath, url, group, name, git)
 		contest = contest,
 		index = index,
 		id = id,
-		title = name,
+		title = M.normalize_title(name, index),
 		url = url,
 		filepath = filepath,
 	}
@@ -171,6 +187,7 @@ local function read_sidecar(filepath, git)
 			decoded[field] = ""
 		end
 	end
+	decoded.title = M.normalize_title(decoded.title, decoded.index)
 	return decoded
 end
 
