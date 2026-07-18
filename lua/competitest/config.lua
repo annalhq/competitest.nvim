@@ -205,11 +205,11 @@ local default_config = {
 	save_current_file = true,
 	save_all_files = false,
 	compile_directory = ".",
-	compile_command = {
-		c = { exec = "gcc", args = { "-Wall", "$(FNAME)", "-o", "$(FNOEXT)" } },
-		cpp = { exec = "g++", args = { "-Wall", "$(FNAME)", "-o", "$(FNOEXT)" } },
-		rust = { exec = "rustc", args = { "$(FNAME)" } },
-		java = { exec = "javac", args = { "$(FNAME)" } },
+		compile_command = {
+		c = { exec = "gcc", args = { "-Wall", "$(FABSPATH)", "-o", "$(FNOEXT)" } },
+		cpp = { exec = "g++", args = { "-Wall", "$(FABSPATH)", "-o", "$(FNOEXT)" } },
+		rust = { exec = "rustc", args = { "$(FABSPATH)" } },
+		java = { exec = "javac", args = { "-d", ".", "$(FABSPATH)" } },
 	},
 	running_directory = ".",
 	run_command = {
