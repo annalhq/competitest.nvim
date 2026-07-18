@@ -185,29 +185,60 @@ function M.list_directory_entries(dirpath)
 	return entries
 end
 
+---Return `path` expressed relatively to `base`, or `nil` when `path` isn't contained in `base`.
+---Both paths are compared after trimming trailing slashes; `path` equal to `base` yields `""`.
+---@param base string ancestor directory absolute path
+---@param path string descendant absolute path
+---@return string? # relative path (no leading nor trailing slash), or `nil` when `path` isn't under `base`
+function M.relative_path(base, path)
+	base = string.gsub(base, "[/\\]+$", "")
+	path = string.gsub(path, "[/\\]+$", "")
+	if path == base then
+		return ""
+	end
+	local prefix = base .. "/"
+	if string.sub(path, 1, #prefix) == prefix then
+		return string.sub(path, #prefix + 1)
+	end
+	return nil
+end
+
 ---Resolve `dir` to an absolute directory ending with `/`.
 ---`@/` paths are relative to `config_root`; otherwise to `filedir`.
+---When `preserve_source_tree` is true, `@/` paths additionally append the source file's parent
+---directory relative to `config_root`, mirroring the source layout under the configured root
+---(e.g. source `cf/1700/2050A.cpp` with `@/testcases` -> `<root>/testcases/cf/1700/`). The source
+---filename itself is never turned into an extra directory.
 ---@param dir string
 ---@param filedir string
 ---@param config_root? string
+---@param preserve_source_tree? boolean
 ---@return string
-function M.resolve_directory(dir, filedir, config_root)
+function M.resolve_directory(dir, filedir, config_root, preserve_source_tree)
 	local base, rel = filedir, dir
+	local subtree -- source-relative parent directory to preserve under the root (only for `@/` paths)
 	local root_relative = string.match(dir, "^@[/\\](.*)$")
 	if root_relative ~= nil then
 		rel = root_relative
 		if config_root and config_root ~= "" then
 			base = config_root
+			if preserve_source_tree then
+				subtree = M.relative_path(config_root, filedir)
+			end
 		else
 			M.notify("resolve_directory: repository-root-relative path '" .. dir
 				.. "' used without a local '.competitest.lua'; resolving relative to the current file instead.", "WARN")
 		end
 	end
-	base = string.gsub(base, "[/\\]+$", "")
-	if rel == "" then
-		return base .. "/"
+	base = string.gsub(base, "[/\\]+$", "") -- trim trailing slashes
+	local parts = { base }
+	if rel ~= "" then
+		table.insert(parts, rel)
 	end
-	return base .. "/" .. rel .. "/"
+	if subtree and subtree ~= "" then
+		table.insert(parts, subtree)
+	end
+	return table.concat(parts, "/") .. "/"
 end
 
 ---Get Neovim UI width and height

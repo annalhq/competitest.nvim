@@ -644,7 +644,7 @@ return {
 ### Repository-root-relative paths
 By default the directory options `testcases_directory`, `compile_directory` and `running_directory` are resolved relatively to the path of the current source file. This means that source files sitting at different depths end up looking for their testcases (or running) in different places.
 
-If you prefix a path with `@/`, it is instead resolved relatively to the directory containing the `.competitest.lua` file that defines it (i.e. your repository/project root). Every source file below that directory then shares the very same directory, regardless of how deeply it is nested.
+If you prefix a path with `@/`, it is instead anchored to the directory containing the `.competitest.lua` file that defines it (i.e. your repository/project root), so the location no longer depends on how deeply the current file is nested.
 
 ``` lua
 -- .competitest.lua placed at your repository root
@@ -653,7 +653,16 @@ return {
 }
 ```
 
-With the configuration above, both `src/day01/solve.cpp` and `contest/hard/x.cpp` store and load their testcases under `<repo>/testcases/`, where `<repo>` is the folder holding `.competitest.lua`. A bare `@/` refers to the repository root itself. Paths without the `@/` prefix keep the legacy, current-file-relative behavior. If `@/` is used but no `.competitest.lua` can be found, the path falls back to being resolved relatively to the current file (and a warning is shown).
+- For `compile_directory` and `running_directory`, `@/build` resolves to `<repo>/build/` for every source file, where `<repo>` is the folder holding `.competitest.lua`.
+- For `testcases_directory`, the source file's parent directory (relative to the repository root) is preserved **under** the configured testcase root, so that each problem keeps its own testcase folder while still living inside one central tree. The source **filename** is never turned into an extra directory. For example, with `testcases_directory = "@/testcases"`:
+
+	| Source file          | Testcases directory      |
+	| -------------------- | ------------------------ |
+	| `cf/1700/2050A.cpp`  | `<repo>/testcases/cf/1700/` |
+	| `atcoder/abc/x.cpp`  | `<repo>/testcases/atcoder/abc/` |
+	| `main.cpp` (at root) | `<repo>/testcases/` |
+
+A bare `@/` refers to the repository root itself. Paths without the `@/` prefix keep the legacy, current-file-relative behavior. If `@/` is used but no `.competitest.lua` can be found, the path falls back to being resolved relatively to the current file (and a warning is shown).
 
 ### Available modifiers
 Modifiers are substrings that will be replaced by another string, depending on the modifier and the context. They're used to tweak some options.
