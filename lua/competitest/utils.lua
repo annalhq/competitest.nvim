@@ -63,6 +63,7 @@ M.file_format_modifiers = {
 
 	-- $(HOME): user home directory
 	["HOME"] = function()
+---@diagnostic disable-next-line: return-type-mismatch
 		return luv.os_homedir()
 	end,
 
