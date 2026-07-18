@@ -87,6 +87,17 @@ function M.setup_highlight_groups()
 	for _, hl in ipairs(highlight_groups) do
 		vim.api.nvim_command("hi! def " .. hl[1] .. " " .. hl[2])
 	end
+	local highlight_links = {
+		{ "CompetiTestGitSection", "Title" },
+		{ "CompetiTestGitLabel", "Comment" },
+		{ "CompetiTestGitKey", "Special" },
+		{ "CompetiTestGitSeparator", "NonText" },
+		{ "CompetiTestGitAccent", "Identifier" },
+		{ "CompetiTestGitFocus", "CursorLine" },
+	}
+	for _, hl in ipairs(highlight_links) do
+		vim.api.nvim_command("hi! def link " .. hl[1] .. " " .. hl[2])
+	end
 end
 
 return M

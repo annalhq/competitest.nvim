@@ -340,8 +340,8 @@ require("competitest").setup({
 			cs = { "Introductory", "Sorting", "Data Structures", "Dynamic Programming", "Graph", "Range Queries", "Tree", "Math", "String", "Geometry", "Advanced" },
 		},
 		platforms = { --[[ ordered platform detection table; see lua/competitest/git/config.lua ]] },
-		width = 0.6,                 -- UI width  (ratio of Neovim width)
-		height = 0.6,                -- UI height (ratio of Neovim height)
+		width = 0.6,                 -- UI width (ratio of Neovim width)
+		height = 0.6,                -- maximum UI height (ratio of Neovim height); the window shrinks to fit its content
 		mappings = {
 			selection = { commit = "c", push = "P", stage = "a", unstage = "u", refresh = "r", close = { "q", "<esc>" } },
 			commit = {
@@ -795,6 +795,13 @@ hi CompetiTestDone    cterm=none     gui=none
 hi CompetiTestCorrect ctermfg=green  guifg=#00ff00
 hi CompetiTestWarning ctermfg=yellow guifg=orange
 hi CompetiTestWrong   ctermfg=red    guifg=#ff0000
+
+hi link CompetiTestGitSection   Title
+hi link CompetiTestGitLabel     Comment
+hi link CompetiTestGitKey       Special
+hi link CompetiTestGitSeparator NonText
+hi link CompetiTestGitAccent    Identifier
+hi link CompetiTestGitFocus     CursorLine
 ```
 
 ## Roadmap

@@ -76,7 +76,7 @@
 ---@field difficulty table<string, string[]> per-platform difficulty lists, keyed by platform code
 ---@field platforms competitest.git.Platform[] ordered platform detection table
 ---@field width number ratio between UI width and Neovim width (between 0 and 1)
----@field height number ratio between UI height and Neovim height (between 0 and 1)
+---@field height number maximum ratio between UI height and Neovim height (between 0 and 1); the window shrinks to fit its content
 ---@field mappings { selection: competitest.git.mappings.selection, commit: competitest.git.mappings.commit }
 
 local M = {}

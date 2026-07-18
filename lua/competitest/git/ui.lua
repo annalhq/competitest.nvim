@@ -60,24 +60,100 @@ local function yesno(b)
 	return b and "yes" or "no"
 end
 
----Human-readable status label for the current file.
+---Highlight groups used by the UI (defined in `competitest.setup_highlight_groups`).
+local HL = {
+	section = "CompetiTestGitSection",
+	label = "CompetiTestGitLabel",
+	key = "CompetiTestGitKey",
+	separator = "CompetiTestGitSeparator",
+	accent = "CompetiTestGitAccent",
+	focus = "CompetiTestGitFocus",
+	correct = "CompetiTestCorrect",
+	warning = "CompetiTestWarning",
+	wrong = "CompetiTestWrong",
+}
+
+---Display label for the first key of a mapping.
+---@param maps keymaps
 ---@return string
-local function status_label()
+local function key_label(maps)
+	local lhs = type(maps) == "table" and maps[1] or maps
+	local special = {
+		["<cr>"] = "Enter",
+		["<esc>"] = "Esc",
+		["<tab>"] = "Tab",
+		["<s-tab>"] = "S-Tab",
+		["<space>"] = "Space",
+		["<up>"] = "↑",
+		["<down>"] = "↓",
+		["<left>"] = "←",
+		["<right>"] = "→",
+	}
+	return special[string.lower(lhs)] or lhs
+end
+
+---Truncate `text` to at most `width` display cells, appending an ellipsis when cut.
+---@param text string
+---@param width integer
+---@return string
+local function truncate(text, width)
+	width = math.max(width, 4)
+	if vim.fn.strdisplaywidth(text) <= width then
+		return text
+	end
+	local chars = vim.fn.strchars(text)
+	while chars > 0 do
+		local part = vim.fn.strcharpart(text, 0, chars)
+		if vim.fn.strdisplaywidth(part) <= width - 1 then
+			return part .. "…"
+		end
+		chars = chars - 1
+	end
+	return "…"
+end
+
+---Greedy-wrap `text` into lines at most `width` display cells wide.
+---@param text string
+---@param width integer
+---@return string[]
+local function wrap(text, width)
+	width = math.max(width, 10)
+	local out, line = {}, ""
+	for word in string.gmatch(text, "%S+") do
+		if line == "" then
+			line = word
+		elseif vim.fn.strdisplaywidth(line .. " " .. word) <= width then
+			line = line .. " " .. word
+		else
+			table.insert(out, line)
+			line = word
+		end
+	end
+	if line ~= "" or #out == 0 then
+		table.insert(out, line)
+	end
+	return out
+end
+
+---Status text and highlight group for the current file.
+---@return string text
+---@return string hlgroup
+local function status_info()
 	local s = ui.status
 	if not s then
-		return "(loading)"
+		return "… loading", HL.label
 	end
 	if not s.tracked then
-		return "untracked"
+		return "● untracked", HL.wrong
 	end
 	if s.staged and s.dirty then
-		return "staged (+ unstaged changes)"
+		return "● staged + modified", HL.warning
 	elseif s.staged then
-		return "staged"
+		return "● staged", HL.correct
 	elseif s.dirty then
-		return "modified"
+		return "● modified", HL.warning
 	end
-	return "clean"
+	return "✓ clean", HL.correct
 end
 
 ---Current commit-message preview.
@@ -108,56 +184,158 @@ end
 -- Rendering
 --------------------------------------------------------------------------------
 
+---A piece of rendered line text with an optional highlight group.
+---@class (exact) competitest.git.ui.segment
+---@field [1] string text
+---@field [2] string? highlight group
+
 ---Rebuild and paint the popup buffer for the current mode.
 local function render()
-	if not (ui.popup and ui.ui_visible) then
+	if not (ui.popup and ui.ui_visible and ui.popup.winid and api.nvim_win_is_valid(ui.popup.winid)) then
 		return
 	end
+	local win_width = api.nvim_win_get_width(ui.popup.winid)
 
-	local lines = {}
-	local focus_row -- 0-indexed line of the focused field (commit mode)
+	local lines = {} ---@type string[]
+	local extmarks = {} ---@type { [1]: integer, [2]: integer, [3]: integer, [4]: string }[] row, col, end_col, group
+	local focus_row ---@type integer? 0-indexed line of the focused field (commit mode)
 
-	local function add(line)
-		table.insert(lines, line)
+	---Append one line composed of highlighted segments.
+	---@param ... competitest.git.ui.segment | string
+	local function add(...)
+		local text = ""
+		for _, seg in ipairs({ ... }) do
+			if type(seg) == "string" then
+				seg = { seg }
+			end
+			if seg[2] and seg[1] ~= "" then
+				table.insert(extmarks, { #lines, #text, #text + #seg[1], seg[2] })
+			end
+			text = text .. seg[1]
+		end
+		table.insert(lines, text)
 	end
 
-	add(string.format("%-12s%s  (%s)", "Repository", vim.fn.fnamemodify(ui.cwd, ":t"), ui.branch or "?"))
-	add(string.format("%-12s%s  [%s]", "File", vim.fn.fnamemodify(ui.problem.filepath, ":t"), status_label()))
-	add(string.format("%-12s%s  %s", "Problem", ui.problem.id ~= "" and ui.problem.id or "?", ui.problem.title))
-	add(string.format("%-12s%s", "URL", ui.problem.url ~= "" and ui.problem.url or "-"))
+	---Append a section separator like ` ── Title ─────`.
+	---@param title string
+	local function section(title)
+		local fill = math.max(3, win_width - vim.fn.strdisplaywidth(title) - 7)
+		add({ " ── ", HL.separator }, { title, HL.section }, { " " .. string.rep("─", fill), HL.separator })
+	end
+
+	---Append a `label  value` header row.
+	---@param label string
+	---@param ... competitest.git.ui.segment | string
+	local function row(label, ...)
+		add({ "  " }, { string.format("%-12s", label), HL.label }, ...)
+	end
+
+	local value_width = win_width - 16 -- header rows: 2 pad + 12 label + right margin
+
+	add("")
+	row("Repository", { vim.fn.fnamemodify(ui.cwd, ":t") }, "  ", { ui.branch or "?", HL.accent })
+	local status_text, status_hl = status_info()
+	row("File", { vim.fn.fnamemodify(ui.problem.filepath, ":t") }, "  ", { status_text, status_hl })
+	local id = ui.problem.id ~= "" and ui.problem.id or "?"
+	if ui.problem.title ~= "" then
+		row("Problem", { id, HL.accent }, "  ", { truncate(ui.problem.title, value_width - #id - 2) })
+	else
+		row("Problem", { id, HL.accent })
+	end
+	row("URL", { truncate(ui.problem.url ~= "" and ui.problem.url or "-", value_width), HL.label })
 	add("")
 
 	if ui.mode == "selection" then
-		add("Actions")
-		add("  [c] commit    [a] stage     [u] unstage")
-		add("  [P] push      [r] refresh   [q] close")
-		add("")
-		add("Preview")
-		add("  " .. preview())
-	else
-		add("Commit fields   ([Tab] move  [Space] edit  [\226\134\144/\226\134\146] cycle)")
-		for i, field in ipairs(ui.fields) do
-			local marker = (i == ui.field_index) and "> " or "  "
-			if i == ui.field_index then
-				focus_row = #lines -- 0-indexed row of the line about to be added
-			end
-			add(string.format("%s%-14s%s", marker, field.label, field_value(field)))
+		section("Commit preview")
+		for _, l in ipairs(wrap(preview(), win_width - 4)) do
+			add("  " .. l)
 		end
 		add("")
-		add("Preview")
-		add("  " .. preview())
+		section("Actions")
+		local m = ui.git.mappings.selection
+		local actions = {
+			{ m.commit, "commit" },
+			{ m.stage, "stage" },
+			{ m.unstage, "unstage" },
+			{ m.push, "push" },
+			{ m.refresh, "refresh" },
+			{ m.close, "close" },
+		}
+		for i = 1, #actions, 3 do
+			local segs = { " " }
+			for j = i, math.min(i + 2, #actions) do
+				local key, name = key_label(actions[j][1]), actions[j][2]
+				table.insert(segs, { string.format("%6s", key), HL.key })
+				table.insert(segs, { " " .. name .. string.rep(" ", math.max(1, 10 - #name)) })
+			end
+			add(unpack(segs))
+		end
+	else
+		section("Commit details")
+		for i, field in ipairs(ui.fields) do
+			local focused = i == ui.field_index
+			local value = field_value(field)
+			local value_hl
+			if field.kind == "toggle" then
+				value_hl = field.get() and HL.correct or HL.label
+			end
+			if focused then
+				focus_row = #lines
+				if field.kind ~= "text" then
+					value = "‹ " .. value .. " ›"
+				end
+			end
+			add({ focused and " ▸ " or "   ", HL.accent }, { string.format("%-14s", field.label), HL.label }, { value, value_hl })
+		end
 		add("")
-		add("[Enter] commit    [Esc] back")
+		section("Preview")
+		for _, l in ipairs(wrap(preview(), win_width - 4)) do
+			add("  " .. l)
+		end
+		add("")
+		local m = ui.git.mappings.commit
+		local hints = {
+			{ key_label(m.confirm), "commit" },
+			{ key_label(m.back), "back" },
+			{ key_label(m.next_field), "move" },
+			{ key_label(m.edit), "edit" },
+			{ key_label(m.cycle_prev) .. "/" .. key_label(m.cycle_next), "cycle" },
+		}
+		local segs, used = { "  " }, 2
+		for _, h in ipairs(hints) do
+			local w = vim.fn.strdisplaywidth(h[1]) + #h[2] + 4
+			if used + w > win_width and #segs > 1 then
+				add(unpack(segs))
+				segs, used = { "  " }, 2
+			end
+			table.insert(segs, { h[1], HL.key })
+			table.insert(segs, { " " .. h[2] .. "   ", HL.label })
+			used = used + w
+		end
+		add(unpack(segs))
+	end
+	add("")
+
+	-- fit the window height to the content, capped by the configured height ratio
+	local _, vim_height = utils.get_ui_size()
+	local max_height = math.max(5, math.floor(ui.git.height * vim_height))
+	local height = math.min(#lines, max_height)
+	if height ~= api.nvim_win_get_height(ui.popup.winid) then
+		ui.popup:update_layout({ position = "50%", size = { width = win_width, height = height } })
 	end
 
 	vim.bo[ui.popup.bufnr].modifiable = true
 	api.nvim_buf_set_lines(ui.popup.bufnr, 0, -1, false, lines)
 	vim.bo[ui.popup.bufnr].modifiable = false
 
-	-- highlight the focused field line and place the cursor on it
 	api.nvim_buf_clear_namespace(ui.popup.bufnr, ui.ns, 0, -1)
-	if focus_row and ui.popup.winid and api.nvim_win_is_valid(ui.popup.winid) then
-		api.nvim_buf_add_highlight(ui.popup.bufnr, ui.ns, "Visual", focus_row, 0, -1)
+	if focus_row then
+		api.nvim_buf_set_extmark(ui.popup.bufnr, ui.ns, focus_row, 0, { line_hl_group = HL.focus, priority = 100 })
+	end
+	for _, e in ipairs(extmarks) do
+		api.nvim_buf_set_extmark(ui.popup.bufnr, ui.ns, e[1], e[2], { end_col = e[3], hl_group = e[4], priority = 110, strict = false })
+	end
+	if focus_row then
 		pcall(api.nvim_win_set_cursor, ui.popup.winid, { focus_row + 1, 0 })
 	end
 end
