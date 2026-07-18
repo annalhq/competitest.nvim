@@ -329,7 +329,8 @@ require("competitest").setup({
 		body = false,                -- include a commit body
 		push_after_commit = false,   -- push automatically after a successful commit
 		stage_testcases = false,     -- also stage the problem's testcases directory
-		meta_file_format = "$(ABSDIR)/$(FNOEXT).cpmeta.json", -- sidecar path (file-format modifiers)
+		meta_directory = ".",        -- where cpmeta.json sidecars live, relative to source; supports "@/" (see testcases_directory)
+		meta_file_format = "$(FNOEXT).cpmeta.json", -- sidecar file name (file-format modifiers)
 		language_map = {},           -- override filetype/extension -> language label, e.g. { cpp = "cpp23" }
 		difficulty = {               -- per-platform difficulty lists (fully overridable)
 			cf = { "800", "900", "--snip--", "3500" },
@@ -642,7 +643,7 @@ return {
 ```
 
 ### Repository-root-relative paths
-By default the directory options `testcases_directory`, `compile_directory` and `running_directory` are resolved relatively to the path of the current source file. This means that source files sitting at different depths end up looking for their testcases (or running) in different places.
+By default the directory options `testcases_directory`, `compile_directory`, `running_directory` and `git.meta_directory` are resolved relatively to the path of the current source file. This means that source files sitting at different depths end up looking for their testcases (or running) in different places.
 
 If you prefix a path with `@/`, it is instead anchored to the directory containing the `.competitest.lua` file that defines it (i.e. your repository/project root), so the location no longer depends on how deeply the current file is nested.
 
@@ -654,7 +655,7 @@ return {
 ```
 
 - For `compile_directory` and `running_directory`, `@/build` resolves to `<repo>/build/` for every source file, where `<repo>` is the folder holding `.competitest.lua`.
-- For `testcases_directory`, the source file's parent directory (relative to the repository root) is preserved **under** the configured testcase root, so that each problem keeps its own testcase folder while still living inside one central tree. The source **filename** is never turned into an extra directory. For example, with `testcases_directory = "@/testcases"`:
+- For `testcases_directory` and `git.meta_directory`, the source file's parent directory (relative to the repository root) is preserved **under** the configured root, so that each problem keeps its own folder while still living inside one central tree. The source **filename** is never turned into an extra directory. For example, with `testcases_directory = "@/testcases"`:
 
 	| Source file          | Testcases directory      |
 	| -------------------- | ------------------------ |

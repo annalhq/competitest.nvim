@@ -33,7 +33,8 @@ M.store_meta = meta.store
 ---@param on_ready fun(context: competitest.git.Context)
 local function build_context(bufnr, on_ready)
 	config.load_buffer_config(bufnr)
-	local git = config.get_buffer_config(bufnr).git
+	local buf_cfg = config.get_buffer_config(bufnr)
+	local git = buf_cfg.git
 
 	if not (git and git.enabled) then
 		utils.notify("git integration is disabled; set `git.enabled = true` in setup().", "WARN")
@@ -60,7 +61,7 @@ local function build_context(bufnr, on_ready)
 			bufnr = bufnr,
 			cwd = cwd,
 			git = git,
-			problem = meta.resolve(bufnr, git),
+			problem = meta.resolve(bufnr, git, buf_cfg.local_config_dir),
 		})
 	end)
 end

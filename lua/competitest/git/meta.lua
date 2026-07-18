@@ -84,9 +84,15 @@ end
 ---Compute the absolute path of the metadata sidecar for a source file.
 ---@param filepath string absolute source file path
 ---@param git competitest.Config.git
+---@param config_root string? directory holding `.competitest.lua`, to resolve `@/` in `meta_directory`
 ---@return string? # sidecar path, or `nil` on evaluation failure
-function M.sidecar_path(filepath, git)
-	return utils.eval_string(filepath, git.meta_file_format)
+function M.sidecar_path(filepath, git, config_root)
+	local name = utils.eval_string(filepath, git.meta_file_format)
+	if not name then
+		return nil
+	end
+	local dir = utils.resolve_directory(git.meta_directory, vim.fn.fnamemodify(filepath, ":h"), config_root, true)
+	return dir .. name
 end
 
 ---Build a `competitest.git.Problem` from raw task fields, using the configured
@@ -147,7 +153,7 @@ function M.store(filepath, task, cfg)
 	if not (git and git.enabled) then
 		return
 	end
-	local meta_path = M.sidecar_path(filepath, git)
+	local meta_path = M.sidecar_path(filepath, git, cfg.local_config_dir)
 	if not meta_path then
 		return
 	end
@@ -166,9 +172,10 @@ end
 ---Read and validate a sidecar for the given source file.
 ---@param filepath string absolute source file path
 ---@param git competitest.Config.git
+---@param config_root string? directory holding `.competitest.lua`
 ---@return competitest.git.Problem? # stored problem, or `nil` when absent/invalid
-local function read_sidecar(filepath, git)
-	local meta_path = M.sidecar_path(filepath, git)
+local function read_sidecar(filepath, git, config_root)
+	local meta_path = M.sidecar_path(filepath, git, config_root)
 	if not meta_path or not utils.does_file_exist(meta_path) then
 		return nil
 	end
@@ -255,11 +262,12 @@ end
 ---Resolve the problem associated with a buffer, trying sidecar, header URL, then file name.
 ---@param bufnr integer buffer number
 ---@param git competitest.Config.git
+---@param config_root string? directory holding `.competitest.lua`
 ---@return competitest.git.Problem
-function M.resolve(bufnr, git)
+function M.resolve(bufnr, git, config_root)
 	local filepath = api.nvim_buf_get_name(bufnr)
 
-	local from_sidecar = read_sidecar(filepath, git)
+	local from_sidecar = read_sidecar(filepath, git, config_root)
 	if from_sidecar then
 		return from_sidecar
 	end
