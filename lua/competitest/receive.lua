@@ -492,7 +492,7 @@ function storage_utils.store_received_task_config(filepath, confirm_overwriting,
 	end
 
 	local testcases = require("competitest.testcases")
-	local tcdir = file_directory .. "/" .. cfg.testcases_directory .. "/"
+	local tcdir = utils.resolve_directory(cfg.testcases_directory, file_directory, cfg.local_config_dir)
 	if cfg.testcases_use_single_file then
 		local single_file_path = tcdir .. utils.eval_string(filepath, cfg.testcases_single_file_format)
 		testcases.single_file.write(single_file_path, tctbl)

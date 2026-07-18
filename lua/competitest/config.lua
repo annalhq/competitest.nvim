@@ -55,6 +55,7 @@
 ---CompetiTest configuration
 ---@class (exact) competitest.Config
 ---@field local_config_file_name string configuration file name, local to folders
+---@field local_config_dir string? directory containing the loaded `.competitest.lua`, used to resolve repository-root-relative (`@/`) paths; set at runtime
 ---@field floating_border nui_popup_border_option_style
 ---@field floating_border_highlight string floating windows border highlight group
 ---@field picker_ui competitest.Config.picker_ui
@@ -301,6 +302,7 @@ M.buffer_configs = {}
 ---Load local configuration for given directory
 ---@param directory string
 ---@return competitest.Config? # local configuration, or `nil` when it's absent or incorrect
+---@return string? # directory containing the found `.competitest.lua`, or `nil` when absent
 function M.load_local_config(directory)
 	local utils = require("competitest.utils")
 	local prev_len
@@ -313,7 +315,7 @@ function M.load_local_config(directory)
 				utils.notify("load_buffer_config: '" .. config_file .. "' doesn't return a table.")
 				return nil
 			end
-			return local_config
+			return local_config, directory
 		end
 		directory = vim.fn.fnamemodify(directory, ":h")
 	end
@@ -323,7 +325,12 @@ end
 ---@param directory string
 ---@return competitest.Config # local configuration, extended with setup options
 function M.load_local_config_and_extend(directory)
-	return M.update_config_table(M.current_setup, M.load_local_config(directory))
+	local local_config, config_dir = M.load_local_config(directory)
+	local extended = M.update_config_table(M.current_setup, local_config)
+	-- record the directory containing `.competitest.lua` so that repository-root-relative
+	-- (`@/`) directory paths can be resolved against it
+	extended.local_config_dir = config_dir
+	return extended
 end
 
 ---Load buffer specific configuration and store it in `M.buffer_configs`

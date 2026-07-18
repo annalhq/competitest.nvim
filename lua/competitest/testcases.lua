@@ -206,9 +206,11 @@ end
 ---@param bufnr integer buffer number
 ---@return string # absolute path of testcases directory
 local function buf_get_testcases_path(bufnr)
-	return vim.api.nvim_buf_call(bufnr, function()
-		return vim.fn.expand("%:p:h") .. "/" .. gbc(bufnr).testcases_directory .. "/"
+	local cfg = gbc(bufnr)
+	local filedir = vim.api.nvim_buf_call(bufnr, function()
+		return vim.fn.expand("%:p:h")
 	end)
+	return utils.resolve_directory(cfg.testcases_directory, filedir, cfg.local_config_dir)
 end
 
 ---Load testcases from a single msgpack-encoded file associated with the given buffer

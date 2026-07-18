@@ -185,6 +185,31 @@ function M.list_directory_entries(dirpath)
 	return entries
 end
 
+---Resolve `dir` to an absolute directory ending with `/`.
+---`@/` paths are relative to `config_root`; otherwise to `filedir`.
+---@param dir string
+---@param filedir string
+---@param config_root? string
+---@return string
+function M.resolve_directory(dir, filedir, config_root)
+	local base, rel = filedir, dir
+	local root_relative = string.match(dir, "^@[/\\](.*)$")
+	if root_relative ~= nil then
+		rel = root_relative
+		if config_root and config_root ~= "" then
+			base = config_root
+		else
+			M.notify("resolve_directory: repository-root-relative path '" .. dir
+				.. "' used without a local '.competitest.lua'; resolving relative to the current file instead.", "WARN")
+		end
+	end
+	base = string.gsub(base, "[/\\]+$", "")
+	if rel == "" then
+		return base .. "/"
+	end
+	return base .. "/" .. rel .. "/"
+end
+
 ---Get Neovim UI width and height
 ---@return integer width, integer height width (number of columns) and height (number of rows)
 function M.get_ui_size()

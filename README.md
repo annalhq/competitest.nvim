@@ -546,9 +546,9 @@ require('competitest').setup {
 	- `horizontal_layout`: a table describing horizontal split UI layout. For further details see [here](#customize-ui-layout)
 - `save_current_file`: if true save current file before running testcases
 - `save_all_files`: if true save all the opened files before running testcases
-- `compile_directory`: execution directory of compiler, relatively to current file's path
+- `compile_directory`: execution directory of compiler, relatively to current file's path (see [repository-root-relative paths](#repository-root-relative-paths))
 - `compile_command`: configure the command used to compile code for every different language, see [here](#customize-compile-and-run-commands)
-- `running_directory`: execution directory of your solutions, relatively to current file's path
+- `running_directory`: execution directory of your solutions, relatively to current file's path (see [repository-root-relative paths](#repository-root-relative-paths))
 - `run_command`: configure the command used to run your solutions for every different language, see [here](#customize-compile-and-run-commands)
 - `remove_compiled_binary`: if true, automatically delete the compiled binary after all testcases finish running. Useful to keep your working directory clean when using compiled languages like C or C++
 - `multiple_testing`: how many testcases to run at the same time
@@ -572,7 +572,7 @@ require('competitest').setup {
 		}
 		```
 - `view_output_diff`: view diff between actual output and expected output in their respective windows
-- `testcases_directory`: where testcases files are located, relatively to current file's path
+- `testcases_directory`: where testcases files are located, relatively to current file's path (see [repository-root-relative paths](#repository-root-relative-paths))
 - `testcases_use_single_file`: if true testcases will be stored in a single file instead of using multiple text files. If you want to change the way already existing testcases are stored see [conversion](#convert-testcases)
 - `testcases_auto_detect_storage`: if true testcases storage method will be detected automatically. When both text files and single file are available, testcases will be loaded according to the preference specified in `testcases_use_single_file`
 - `testcases_single_file_format`: string representing how single testcases files should be named (see [file-format modifiers](#file-format-modifiers))
@@ -640,6 +640,20 @@ return {
 	testcases_single_file_format = "$(FNOEXT).tc",
 }
 ```
+
+### Repository-root-relative paths
+By default the directory options `testcases_directory`, `compile_directory` and `running_directory` are resolved relatively to the path of the current source file. This means that source files sitting at different depths end up looking for their testcases (or running) in different places.
+
+If you prefix a path with `@/`, it is instead resolved relatively to the directory containing the `.competitest.lua` file that defines it (i.e. your repository/project root). Every source file below that directory then shares the very same directory, regardless of how deeply it is nested.
+
+``` lua
+-- .competitest.lua placed at your repository root
+return {
+	testcases_directory = "@/testcases",
+}
+```
+
+With the configuration above, both `src/day01/solve.cpp` and `contest/hard/x.cpp` store and load their testcases under `<repo>/testcases/`, where `<repo>` is the folder holding `.competitest.lua`. A bare `@/` refers to the repository root itself. Paths without the `@/` prefix keep the legacy, current-file-relative behavior. If `@/` is used but no `.competitest.lua` can be found, the path falls back to being resolved relatively to the current file (and a warning is shown).
 
 ### Available modifiers
 Modifiers are substrings that will be replaced by another string, depending on the modifier and the context. They're used to tweak some options.

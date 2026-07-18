@@ -304,7 +304,8 @@ function M.stage_paths(bufnr, problem, git)
 			return require("competitest.config").get_buffer_config(bufnr)
 		end)
 		if ok and bufcfg then
-			local tcdir = vim.fn.fnamemodify(problem.filepath, ":h") .. "/" .. (bufcfg.testcases_directory or ".")
+			local filedir = vim.fn.fnamemodify(problem.filepath, ":h")
+			local tcdir = utils.resolve_directory(bufcfg.testcases_directory or ".", filedir, bufcfg.local_config_dir)
 			if utils.does_file_exist(tcdir) then
 				table.insert(paths, tcdir)
 			end
